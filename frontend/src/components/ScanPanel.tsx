@@ -41,24 +41,34 @@ export function ScanPanel({value, onChange, onProductFound}: Props) {
   const startScanning = useCallback(async () => {
     try {
       setError(null);
-      setScanning(true);
       
-      if (!scanAreaRef.current) {
-        setError('스캔 영역을 찾을 수 없습니다.');
-        setScanning(false);
-        return;
-      }
-
       // 카메라 권한 확인
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setError('이 브라우저는 카메라를 지원하지 않습니다. HTTPS를 사용하거나 다른 브라우저를 시도하세요.');
-        setScanning(false);
         return;
       }
 
       // HTTPS 확인 (로컬호스트 제외)
       if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
         setError('카메라는 HTTPS 연결에서만 사용할 수 있습니다.');
+        return;
+      }
+
+      // 스캔 영역을 먼저 표시
+      setScanning(true);
+      
+      // DOM이 렌더링될 때까지 대기
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // 스캔 영역 확인 (여러 번 시도)
+      let retries = 0;
+      while (!scanAreaRef.current && retries < 10) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        retries++;
+      }
+      
+      if (!scanAreaRef.current) {
+        setError('스캔 영역을 찾을 수 없습니다. 페이지를 새로고침해주세요.');
         setScanning(false);
         return;
       }
@@ -245,7 +255,7 @@ export function ScanPanel({value, onChange, onProductFound}: Props) {
             </p>
           </div>
         )}
-        {scanning && scanAreaRef.current && (
+        {scanning && (
           <div
             id="qr-reader"
             ref={scanAreaRef}
