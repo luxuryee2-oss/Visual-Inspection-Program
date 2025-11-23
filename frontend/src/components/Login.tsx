@@ -3,19 +3,22 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/compo
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
-import {login, setAuthToken} from '@/api/auth';
+import {login, register, setAuthToken} from '@/api/auth';
 
 type Props = {
   onLoginSuccess: () => void;
 };
 
 export function Login({onLoginSuccess}: Props) {
+  const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState('');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
@@ -31,15 +34,62 @@ export function Login({onLoginSuccess}: Props) {
     }
   };
 
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (password !== confirmPassword) {
+      setError('비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('비밀번호는 최소 6자 이상이어야 합니다.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await register(username, name, password, 'inspector');
+      // 회원가입 성공 후 자동 로그인
+      const response = await login(username, password);
+      setAuthToken(response.token);
+      onLoginSuccess();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? '회원가입에 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md border-[hsl(var(--doom-red))]/30">
         <CardHeader>
-          <CardTitle className="text-[hsl(var(--doom-red))] text-2xl">로그인</CardTitle>
-          <CardDescription>검사 작업자 로그인</CardDescription>
+          <CardTitle className="text-[hsl(var(--doom-red))] text-2xl">
+            {isRegister ? '회원가입' : '로그인'}
+          </CardTitle>
+          <CardDescription>
+            {isRegister ? '새 계정을 만드세요' : '검사 작업자 로그인'}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={isRegister ? handleRegister : handleLogin} className="space-y-4">
+            {isRegister && (
+              <div className="space-y-2">
+                <Label htmlFor="name">이름</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="이름 입력"
+                  required
+                  className="border-input/50 focus-visible:ring-[hsl(var(--doom-red))]"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="username">사용자명</Label>
               <Input
@@ -64,6 +114,20 @@ export function Login({onLoginSuccess}: Props) {
                 className="border-input/50 focus-visible:ring-[hsl(var(--doom-red))]"
               />
             </div>
+            {isRegister && (
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">비밀번호 확인</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="비밀번호 다시 입력"
+                  required
+                  className="border-input/50 focus-visible:ring-[hsl(var(--doom-red))]"
+                />
+              </div>
+            )}
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button
               type="submit"
@@ -72,11 +136,33 @@ export function Login({onLoginSuccess}: Props) {
               className="w-full"
               disabled={loading}
             >
-              {loading ? '로그인 중...' : '로그인'}
+              {loading
+                ? isRegister
+                  ? '가입 중...'
+                  : '로그인 중...'
+                : isRegister
+                  ? '회원가입'
+                  : '로그인'}
             </Button>
-            <p className="text-xs text-center text-muted-foreground">
-              기본 계정: inspector1 / password123
-            </p>
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRegister(!isRegister);
+                  setError(null);
+                  setPassword('');
+                  setConfirmPassword('');
+                }}
+                className="text-sm text-muted-foreground hover:text-foreground underline"
+              >
+                {isRegister ? '이미 계정이 있으신가요? 로그인' : '계정이 없으신가요? 회원가입'}
+              </button>
+            </div>
+            {!isRegister && (
+              <p className="text-xs text-center text-muted-foreground">
+                기본 계정: inspector1 / password123
+              </p>
+            )}
           </form>
         </CardContent>
       </Card>

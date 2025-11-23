@@ -17,6 +17,16 @@ export async function login(username: string, password: string): Promise<LoginRe
   return data;
 }
 
+export async function register(
+  username: string,
+  name: string,
+  password: string,
+  role: 'inspector' | 'admin' = 'inspector'
+): Promise<User> {
+  const {data} = await api.post<User>('/auth/register', {username, name, password, role});
+  return data;
+}
+
 export async function getCurrentUser(): Promise<User> {
   const token = localStorage.getItem('auth_token');
   const {data} = await api.get<User>('/auth/me', {
@@ -38,4 +48,3 @@ export function getAuthToken(): string | null {
 export function removeAuthToken() {
   localStorage.removeItem('auth_token');
 }
-
