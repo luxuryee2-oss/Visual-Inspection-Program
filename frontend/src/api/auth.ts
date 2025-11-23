@@ -28,12 +28,8 @@ export async function register(
 }
 
 export async function getCurrentUser(): Promise<User> {
-  const token = localStorage.getItem('auth_token');
-  const {data} = await api.get<User>('/auth/me', {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  });
+  // api 인스턴스의 인터셉터가 자동으로 토큰을 추가하므로 헤더에 직접 넣을 필요 없음
+  const {data} = await api.get<User>('/auth/me');
   return data;
 }
 

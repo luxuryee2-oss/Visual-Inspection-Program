@@ -8,7 +8,8 @@ import {Login} from './components/Login';
 import {useInspectionForm} from './hooks/useInspectionForm';
 import {fetchInspectionHistory, uploadInspection} from './api/inspections';
 import {getProductByUniqueCode} from './api/products';
-import {getCurrentUser, getAuthToken, removeAuthToken} from './api/auth';
+// 임시: 인증 관련 import 비활성화 (테스트용)
+// import {getCurrentUser, removeAuthToken} from './api/auth';
 import type {InspectionDirection, InspectionFormValues} from './types/inspection';
 import type {User} from './api/auth';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
@@ -19,63 +20,17 @@ import {Label} from '@/components/ui/label';
 import {LogOut} from 'lucide-react';
 
 function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // 임시: 로그인 없이 바로 메인 화면 표시 (테스트용)
+  // 배포 환경과 로컬 환경 모두에서 작동
+  const [user] = useState<User | null>({
+    id: '1',
+    username: 'test-user',
+    name: '테스트 사용자',
+    role: 'inspector'
+  });
+  const [loading] = useState(false);
   const {form, setImage, resetImages} = useInspectionForm();
   const productCode = form.watch('productCode');
-
-  // 인증 확인
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = getAuthToken();
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const currentUser = await getCurrentUser();
-        setUser(currentUser);
-        // 검사자 정보 자동 입력
-        form.setValue('inspectedBy', currentUser.name || currentUser.username);
-      } catch (error) {
-        removeAuthToken();
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, [form]);
-
-  const handleLoginSuccess = async () => {
-    try {
-      const currentUser = await getCurrentUser();
-      setUser(currentUser);
-      form.setValue('inspectedBy', currentUser.name || currentUser.username);
-    } catch (error) {
-      console.error('사용자 정보 조회 실패:', error);
-    }
-  };
-
-  const handleLogout = () => {
-    removeAuthToken();
-    setUser(null);
-    form.reset();
-    resetImages();
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">로딩 중...</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
-  }
 
   // 제품 정보 자동 조회
   const handleProductFound = async (scannedValue: string, uniqueCode: string) => {
@@ -94,11 +49,17 @@ function App() {
     }
   };
 
+  // 모든 Hook은 조건부 렌더링 전에 호출되어야 함
+  // 임시: 백엔드 연결 없이도 작동하도록 에러 무시
   const {data: history = [], isFetching} = useQuery({
     queryKey: ['history', productCode],
     queryFn: () => fetchInspectionHistory(productCode),
-    enabled: Boolean(productCode),
-    staleTime: 1000 * 60
+    enabled: Boolean(productCode && user), // user가 있을 때만 실행
+    staleTime: 1000 * 60,
+    retry: false, // 재시도 비활성화 (백엔드 없어도 에러 안 나게)
+    onError: () => {
+      // 에러 무시 (백엔드 연결 실패해도 계속 작동)
+    }
   });
 
   const mutation = useMutation({
@@ -113,9 +74,74 @@ function App() {
     }
   });
 
+  // 임시: 인증 확인 비활성화 (테스트용)
+  // useEffect(() => {
+  //   const checkAuth = async () => {
+  //     const token = getAuthToken();
+  //     if (!token) {
+  //       setLoading(false);
+  //       return;
+  //     }
+
+  //     try {
+  //       const currentUser = await getCurrentUser();
+  //       setUser(currentUser);
+  //       // 검사자 정보 자동 입력
+  //       form.setValue('inspectedBy', currentUser.name || currentUser.username);
+  //     } catch (error) {
+  //       removeAuthToken();
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+
+  //   checkAuth();
+  // }, [form]);
+
+  // 임시: 테스트 사용자 정보 자동 입력
+  useEffect(() => {
+    if (user) {
+      form.setValue('inspectedBy', user.name || user.username);
+    }
+  }, [user, form]);
+
+  const handleLoginSuccess = async () => {
+    // 임시: 로그인 성공 처리 비활성화 (테스트용)
+    // try {
+    //   const currentUser = await getCurrentUser();
+    //   setUser(currentUser);
+    //   form.setValue('inspectedBy', currentUser.name || currentUser.username);
+    // } catch (error) {
+    //   console.error('사용자 정보 조회 실패:', error);
+    //   removeAuthToken();
+    //   setUser(null);
+    // }
+  };
+
+  const handleLogout = () => {
+    // 임시: 로그아웃 비활성화 (테스트용)
+    // removeAuthToken();
+    // setUser(null);
+    form.reset();
+    resetImages();
+    alert('테스트 모드: 로그아웃이 비활성화되어 있습니다.');
+  };
+
   const handleSubmit = form.handleSubmit((values: InspectionFormValues) => {
     mutation.mutate(values);
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">로딩 중...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">

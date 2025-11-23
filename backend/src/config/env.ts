@@ -8,7 +8,8 @@ type RequiredEnv =
   | 'AZURE_CLIENT_SECRET'
   | 'SHAREPOINT_SITE_ID'
   | 'SHAREPOINT_DRIVE_ID'
-  | 'SHAREPOINT_LIBRARY_NAME';
+  | 'SHAREPOINT_LIBRARY_NAME'
+  | 'DATABASE_URL';
 
 const required: RequiredEnv[] = [
   'PORT',
@@ -18,7 +19,8 @@ const required: RequiredEnv[] = [
   'AZURE_CLIENT_SECRET',
   'SHAREPOINT_SITE_ID',
   'SHAREPOINT_DRIVE_ID',
-  'SHAREPOINT_LIBRARY_NAME'
+  'SHAREPOINT_LIBRARY_NAME',
+  'DATABASE_URL'
 ];
 
 const allowMock = process.env.NODE_ENV === 'test';

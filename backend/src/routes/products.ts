@@ -2,6 +2,7 @@ import {Router} from 'express';
 import multer from 'multer';
 import {SharePointClient} from '../services/sharepointClient.js';
 import {logger} from '../utils/logger.js';
+import {prisma} from '../lib/prisma.js';
 
 type MulterFile = Express.Multer.File;
 const upload = multer({
@@ -18,17 +19,6 @@ const upload = multer({
   }
 });
 
-export interface ProductInfo {
-  uniqueCode: string; // 스캔값 앞부분 고유 코드
-  productCode: string; // 제품 코드
-  productName: string; // 제품명
-  productImageUrl?: string; // 제품 사진 URL
-  createdAt: string;
-}
-
-// 간단한 인메모리 저장소 (실제로는 DB나 SharePoint 사용 권장)
-const productStore = new Map<string, ProductInfo>();
-
 export function createProductRouter(spClient: SharePointClient): Router {
   const router = Router();
 
@@ -44,6 +34,15 @@ export function createProductRouter(spClient: SharePointClient): Router {
           return res.status(400).json({message: 'uniqueCode, productCode, productName은 필수입니다.'});
         }
 
+        // 중복 uniqueCode 확인
+        const existingProduct = await prisma.product.findUnique({
+          where: {uniqueCode}
+        });
+
+        if (existingProduct) {
+          return res.status(409).json({message: '이미 존재하는 고유 코드입니다.'});
+        }
+
         let productImageUrl: string | undefined;
         if (req.file) {
           // SharePoint에 제품 이미지 업로드
@@ -53,18 +52,25 @@ export function createProductRouter(spClient: SharePointClient): Router {
           productImageUrl = await spClient.uploadProductFile(remotePath, req.file.buffer, req.file.mimetype);
         }
 
-        const product: ProductInfo = {
-          uniqueCode,
-          productCode,
-          productName,
-          productImageUrl,
-          createdAt: new Date().toISOString()
-        };
+        // 제품 정보 DB에 저장
+        const product = await prisma.product.create({
+          data: {
+            uniqueCode,
+            productCode,
+            productName,
+            imageUrl: productImageUrl
+          }
+        });
 
-        productStore.set(uniqueCode, product);
         logger.info({uniqueCode, productCode}, '제품 정보 등록 완료');
 
-        return res.status(201).json(product);
+        return res.status(201).json({
+          uniqueCode: product.uniqueCode,
+          productCode: product.productCode,
+          productName: product.productName,
+          productImageUrl: product.imageUrl,
+          createdAt: product.createdAt.toISOString()
+        });
       } catch (error) {
         logger.error({error}, '제품 정보 등록 실패');
         next(error);
@@ -76,13 +82,21 @@ export function createProductRouter(spClient: SharePointClient): Router {
   router.get('/:uniqueCode', async (req, res, next) => {
     try {
       const {uniqueCode} = req.params;
-      const product = productStore.get(uniqueCode);
+      const product = await prisma.product.findUnique({
+        where: {uniqueCode}
+      });
 
       if (!product) {
         return res.status(404).json({message: '제품 정보를 찾을 수 없습니다.'});
       }
 
-      return res.json(product);
+      return res.json({
+        uniqueCode: product.uniqueCode,
+        productCode: product.productCode,
+        productName: product.productName,
+        productImageUrl: product.imageUrl,
+        createdAt: product.createdAt.toISOString()
+      });
     } catch (error) {
       logger.error({error}, '제품 정보 조회 실패');
       next(error);
@@ -92,8 +106,19 @@ export function createProductRouter(spClient: SharePointClient): Router {
   // 모든 제품 목록 조회
   router.get('/', async (req, res, next) => {
     try {
-      const products = Array.from(productStore.values());
-      return res.json({items: products});
+      const products = await prisma.product.findMany({
+        orderBy: {createdAt: 'desc'}
+      });
+
+      const items = products.map(product => ({
+        uniqueCode: product.uniqueCode,
+        productCode: product.productCode,
+        productName: product.productName,
+        productImageUrl: product.imageUrl,
+        createdAt: product.createdAt.toISOString()
+      }));
+
+      return res.json({items});
     } catch (error) {
       logger.error({error}, '제품 목록 조회 실패');
       next(error);
@@ -102,4 +127,3 @@ export function createProductRouter(spClient: SharePointClient): Router {
 
   return router;
 }
-

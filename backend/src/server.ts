@@ -7,13 +7,33 @@ import {createProductRouter} from './routes/products.js';
 import {createAuthRouter} from './routes/auth.js';
 import {SharePointClient} from './services/sharepointClient.js';
 import {logger} from './utils/logger.js';
+import {prisma} from './lib/prisma.js';
 
 const app = express();
 const sharePointClient = new SharePointClient();
 
+// Prisma 연결 확인
+prisma.$connect()
+  .then(() => {
+    logger.info('Prisma 데이터베이스 연결 성공');
+  })
+  .catch((error) => {
+    logger.error({error}, 'Prisma 데이터베이스 연결 실패');
+  });
+
+// CORS 설정: 여러 origin 지원 (쉼표로 구분)
+const allowedOrigins = config.clientOrigin.split(',').map(origin => origin.trim());
 app.use(
   cors({
-    origin: config.clientOrigin,
+    origin: (origin, callback) => {
+      // origin이 없거나 (같은 도메인 요청) 허용된 origin이면 통과
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        logger.warn({origin, allowedOrigins}, 'CORS 차단된 origin');
+        callback(new Error('CORS 정책에 의해 차단되었습니다.'));
+      }
+    },
     credentials: true
   })
 );
