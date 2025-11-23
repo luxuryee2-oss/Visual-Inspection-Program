@@ -165,6 +165,10 @@ export class SharePointClient {
     }
   }
 
+  async uploadProductFile(path: string, buffer: Buffer, mimeType: string): Promise<string> {
+    return this.uploadFile(path, buffer, mimeType);
+  }
+
   private async uploadFile(path: string, buffer: Buffer, mimeType: string): Promise<string> {
     // Microsoft Graph simple upload는 4MB까지만 지원하므로 항상 업로드 세션을 사용
     const session = await this.graphClient

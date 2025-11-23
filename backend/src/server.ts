@@ -3,6 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import {config} from './config/env.js';
 import {createInspectionRouter} from './routes/inspections.js';
+import {createProductRouter} from './routes/products.js';
+import {createAuthRouter} from './routes/auth.js';
 import {SharePointClient} from './services/sharepointClient.js';
 import {logger} from './utils/logger.js';
 
@@ -17,7 +19,9 @@ app.use(
 );
 app.use(express.json());
 
+app.use('/api/auth', createAuthRouter());
 app.use('/api/inspections', createInspectionRouter(sharePointClient));
+app.use('/api/products', createProductRouter(sharePointClient));
 
 app.get('/healthz', (_req, res) => {
   res.json({status: 'ok'});

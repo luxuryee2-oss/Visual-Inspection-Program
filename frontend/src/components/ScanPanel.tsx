@@ -3,17 +3,63 @@ import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
-import {Camera, CameraOff} from 'lucide-react';
+import {Camera, CameraOff, Scan} from 'lucide-react';
+import {Html5Qrcode} from 'html5-qrcode';
 
 type Props = {
   value: string;
   onChange: (value: string) => void;
+  onProductFound?: (productCode: string, productName: string) => void;
 };
 
-export function ScanPanel({value, onChange}: Props) {
+export function ScanPanel({value, onChange, onProductFound}: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const scanAreaRef = useRef<HTMLDivElement | null>(null);
+  const qrCodeScannerRef = useRef<Html5Qrcode | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const startScanning = useCallback(async () => {
+    try {
+      setError(null);
+      setScanning(true);
+      
+      if (!scanAreaRef.current) return;
+
+      const qrCode = new Html5Qrcode(scanAreaRef.current.id);
+      qrCodeScannerRef.current = qrCode;
+
+      await qrCode.start(
+        {facingMode: 'environment'},
+        {
+          fps: 10,
+          qrbox: {width: 250, height: 250}
+        },
+        (decodedText) => {
+          // 스캔 성공
+          onChange(decodedText);
+          stopScanning();
+          
+          // 고유 코드 추출 (앞부분)
+          const uniqueCode = decodedText.split('-')[0] || decodedText.split('_')[0] || decodedText.substring(0, 8);
+          if (onProductFound && uniqueCode) {
+            // 제품 정보 조회는 상위 컴포넌트에서 처리
+            onProductFound(decodedText, uniqueCode);
+          }
+        },
+        () => {
+          // 스캔 실패 (계속 시도)
+        }
+      );
+      
+      setCameraActive(true);
+    } catch (err: any) {
+      setError('카메라를 사용할 수 없습니다. 권한을 확인하세요.');
+      setScanning(false);
+      setCameraActive(false);
+    }
+  }, [onChange, onProductFound]);
 
   const startCamera = useCallback(async () => {
     try {
@@ -29,19 +75,33 @@ export function ScanPanel({value, onChange}: Props) {
     }
   }, []);
 
-  const stopCamera = useCallback(() => {
+  const stopScanning = useCallback(async () => {
+    if (qrCodeScannerRef.current) {
+      try {
+        await qrCodeScannerRef.current.stop();
+        await qrCodeScannerRef.current.clear();
+      } catch (err) {
+        // 이미 정지된 경우 무시
+      }
+      qrCodeScannerRef.current = null;
+    }
     if (videoRef.current?.srcObject) {
       const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
       tracks.forEach((track) => track.stop());
     }
     setCameraActive(false);
+    setScanning(false);
   }, []);
+
+  const stopCamera = useCallback(() => {
+    stopScanning();
+  }, [stopScanning]);
 
   useEffect(() => {
     return () => {
-      stopCamera();
+      stopScanning();
     };
-  }, [stopCamera]);
+  }, [stopScanning]);
 
   return (
     <Card className="border-[hsl(var(--doom-red))]/30">
@@ -75,14 +135,61 @@ export function ScanPanel({value, onChange}: Props) {
           <Input
             id="productCode"
             type="text"
-            placeholder="제품 코드 입력"
+            placeholder="제품 코드 입력 또는 스캔"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             className="border-input/50 focus-visible:ring-[hsl(var(--doom-red))]"
           />
         </div>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant={scanning ? "destructive" : "doom"}
+            size="sm"
+            onClick={scanning ? stopScanning : startScanning}
+            className="flex-1"
+          >
+            {scanning ? (
+              <>
+                <CameraOff className="h-4 w-4 mr-2" />
+                스캔 중지
+              </>
+            ) : (
+              <>
+                <Scan className="h-4 w-4 mr-2" />
+                스캔 시작
+              </>
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={cameraActive ? stopCamera : startCamera}
+          >
+            {cameraActive ? (
+              <>
+                <CameraOff className="h-4 w-4 mr-2" />
+                종료
+              </>
+            ) : (
+              <>
+                <Camera className="h-4 w-4 mr-2" />
+                카메라
+              </>
+            )}
+          </Button>
+        </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
-        {cameraActive && (
+        {scanning && scanAreaRef.current && (
+          <div
+            id="qr-reader"
+            ref={scanAreaRef}
+            className="w-full rounded-md border border-[hsl(var(--doom-red))]/50"
+            style={{minHeight: '300px'}}
+          />
+        )}
+        {cameraActive && !scanning && (
           <video
             ref={videoRef}
             className="w-full rounded-md border border-input/50"
