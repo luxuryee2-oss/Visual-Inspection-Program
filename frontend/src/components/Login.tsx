@@ -65,7 +65,12 @@ export function Login({onLoginSuccess}: Props) {
         errorMessage = err.response.data?.message ?? errorMessage;
       } else if (err?.request) {
         // 요청은 보냈지만 응답을 받지 못한 경우 (네트워크 오류)
-        errorMessage = '서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인하세요.';
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+          errorMessage = `서버에 연결할 수 없습니다. Vercel 환경 변수에서 VITE_API_URL을 설정했는지 확인하세요. (현재: ${apiUrl || '설정되지 않음'})`;
+        } else {
+          errorMessage = '서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인하세요. (http://localhost:4000)';
+        }
       } else {
         // 요청 설정 중 오류
         errorMessage = err?.message ?? errorMessage;
