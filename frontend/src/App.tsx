@@ -10,7 +10,7 @@ import {fetchInspectionHistory, uploadInspection} from './api/inspections';
 import {getProductByUniqueCode} from './api/products';
 // 임시: 인증 관련 import 비활성화 (테스트용)
 // import {getCurrentUser, removeAuthToken} from './api/auth';
-import type {InspectionDirection, InspectionFormValues} from './types/inspection';
+import type {InspectionDirection, InspectionFormValues, InspectionHistoryEntry} from './types/inspection';
 import type {User} from './api/auth';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
@@ -51,15 +51,12 @@ function App() {
 
   // 모든 Hook은 조건부 렌더링 전에 호출되어야 함
   // 임시: 백엔드 연결 없이도 작동하도록 에러 무시
-  const {data: history = [], isFetching} = useQuery({
+  const {data: history = [], isFetching} = useQuery<InspectionHistoryEntry[]>({
     queryKey: ['history', productCode],
     queryFn: () => fetchInspectionHistory(productCode),
     enabled: Boolean(productCode && user), // user가 있을 때만 실행
     staleTime: 1000 * 60,
-    retry: false, // 재시도 비활성화 (백엔드 없어도 에러 안 나게)
-    onError: () => {
-      // 에러 무시 (백엔드 연결 실패해도 계속 작동)
-    }
+    retry: false // 재시도 비활성화 (백엔드 없어도 에러 안 나게)
   });
 
   const mutation = useMutation({
@@ -70,7 +67,13 @@ function App() {
       alert('업로드가 완료되었습니다!');
     },
     onError: (error: any) => {
-      alert(`업로드 실패: ${error?.response?.data?.message ?? error.message}`);
+      // 임시: 백엔드 연결 실패 시에도 테스트 가능하도록
+      const errorMessage = error?.response?.data?.message ?? error.message;
+      if (errorMessage.includes('Network') || errorMessage.includes('CORS') || errorMessage.includes('405')) {
+        alert('테스트 모드: 백엔드 서버가 연결되지 않았습니다. 로컬에서 백엔드를 실행하거나 Railway에 배포하세요.');
+      } else {
+        alert(`업로드 실패: ${errorMessage}`);
+      }
     }
   });
 
