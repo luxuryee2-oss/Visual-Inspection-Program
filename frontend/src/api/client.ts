@@ -27,9 +27,19 @@ try {
   console.log('✅ API Base URL:', apiBaseUrl);
 } catch (error) {
   console.error('❌ API URL 설정 실패:', error);
-  // 기본값 설정 (로컬 개발용)
-  apiBaseUrl = 'http://localhost:4000/api';
-  console.warn('⚠️ 기본값 사용:', apiBaseUrl);
+  // 배포 환경에서 환경 변수가 없으면 명확한 에러 표시
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (!isLocal) {
+    // 배포 환경에서는 환경 변수 필수
+    apiBaseUrl = '/api'; // 임시로 설정 (에러는 여전히 발생하지만)
+    console.error('❌❌❌ Vercel 환경 변수 설정이 필요합니다! ❌❌❌');
+    console.error('Vercel Settings → Environment Variables → VITE_API_URL 설정 필요');
+    console.error('현재 요청이 Vercel 도메인으로 가고 있어 405 에러 발생');
+  } else {
+    // 로컬 개발 환경
+    apiBaseUrl = 'http://localhost:4000/api';
+    console.warn('⚠️ 기본값 사용:', apiBaseUrl);
+  }
 }
 
 export const api = axios.create({

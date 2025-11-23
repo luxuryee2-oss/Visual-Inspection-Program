@@ -70,15 +70,21 @@ export function Login({onLoginSuccess}: Props) {
       
       if (err?.response) {
         // 서버 응답이 있는 경우
-        const serverMessage = err.response.data?.message;
-        if (serverMessage) {
-          errorMessage = serverMessage;
-        } else if (err.response.status === 400) {
-          errorMessage = '입력 정보를 확인해주세요.';
-        } else if (err.response.status === 409) {
-          errorMessage = '이미 존재하는 사용자명입니다.';
+        const status = err.response.status;
+        if (status === 405) {
+          // 405 Method Not Allowed = Vercel 환경 변수 미설정
+          errorMessage = 'Vercel 환경 변수가 설정되지 않았습니다. Vercel Settings → Environment Variables에서 VITE_API_URL을 설정하고 재배포하세요.';
         } else {
-          errorMessage = `서버 오류 (${err.response.status})`;
+          const serverMessage = err.response.data?.message;
+          if (serverMessage) {
+            errorMessage = serverMessage;
+          } else if (status === 400) {
+            errorMessage = '입력 정보를 확인해주세요.';
+          } else if (status === 409) {
+            errorMessage = '이미 존재하는 사용자명입니다.';
+          } else {
+            errorMessage = `서버 오류 (${status})`;
+          }
         }
       } else if (err?.request) {
         // 요청은 보냈지만 응답을 받지 못한 경우 (네트워크 오류)
