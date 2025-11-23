@@ -14,3 +14,18 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// 응답 인터셉터: 에러 로깅
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('API 에러:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
+    return Promise.reject(error);
+  }
+);
+

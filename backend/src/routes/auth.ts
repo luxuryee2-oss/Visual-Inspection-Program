@@ -89,21 +89,26 @@ export function createAuthRouter(): Router {
     }
   });
 
-  // 사용자 등록 (관리자용)
+  // 사용자 등록
   router.post('/register', async (req, res, next) => {
     try {
+      logger.info({body: req.body}, '회원가입 요청 받음');
       const {username, name, password, role = 'inspector'} = req.body;
 
       if (!username || !name || !password) {
+        logger.warn({username, name, hasPassword: !!password}, '필수 필드 누락');
         return res.status(400).json({message: '사용자명, 이름, 비밀번호는 필수입니다.'});
       }
 
       if (users.has(username)) {
+        logger.warn({username}, '이미 존재하는 사용자명');
         return res.status(409).json({message: '이미 존재하는 사용자명입니다.'});
       }
 
+      // ID 생성 시 기존 사용자 수 고려
+      const newId = String(Array.from(users.values()).length + 1);
       const user: User = {
-        id: String(users.size + 1),
+        id: newId,
         username,
         name,
         password, // 실제로는 bcrypt로 해시
@@ -111,7 +116,7 @@ export function createAuthRouter(): Router {
       };
 
       users.set(username, user);
-      logger.info({username, userId: user.id}, '사용자 등록 완료');
+      logger.info({username, userId: user.id, name}, '사용자 등록 완료');
 
       return res.status(201).json({
         id: user.id,
@@ -120,7 +125,7 @@ export function createAuthRouter(): Router {
         role: user.role
       });
     } catch (error) {
-      logger.error({error}, '사용자 등록 실패');
+      logger.error({error, stack: (error as Error).stack}, '사용자 등록 실패');
       next(error);
     }
   });
