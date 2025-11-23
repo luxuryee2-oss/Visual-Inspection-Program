@@ -57,12 +57,29 @@ export function Login({onLoginSuccess}: Props) {
       setAuthToken(response.token);
       onLoginSuccess();
     } catch (err: any) {
-      console.error('회원가입 에러:', err);
+      console.error('회원가입 에러 상세:', {
+        error: err,
+        response: err?.response,
+        responseData: err?.response?.data,
+        request: err?.request,
+        message: err?.message,
+        status: err?.response?.status
+      });
+      
       let errorMessage = '회원가입에 실패했습니다.';
       
       if (err?.response) {
         // 서버 응답이 있는 경우
-        errorMessage = err.response.data?.message ?? errorMessage;
+        const serverMessage = err.response.data?.message;
+        if (serverMessage) {
+          errorMessage = serverMessage;
+        } else if (err.response.status === 400) {
+          errorMessage = '입력 정보를 확인해주세요.';
+        } else if (err.response.status === 409) {
+          errorMessage = '이미 존재하는 사용자명입니다.';
+        } else {
+          errorMessage = `서버 오류 (${err.response.status})`;
+        }
       } else if (err?.request) {
         // 요청은 보냈지만 응답을 받지 못한 경우 (네트워크 오류)
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';

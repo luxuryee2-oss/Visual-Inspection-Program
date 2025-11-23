@@ -4,26 +4,38 @@ import axios from 'axios';
 const getApiUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL;
   if (envUrl) {
-    return envUrl;
+    // 환경 변수가 있으면 사용 (끝에 /api가 없으면 추가)
+    return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
   }
   // 로컬 개발 환경
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     return 'http://localhost:4000/api';
   }
   // 배포 환경에서는 환경 변수 필수
-  console.error('VITE_API_URL이 설정되지 않았습니다!');
+  console.error('❌ VITE_API_URL이 설정되지 않았습니다!');
   console.error('Vercel Settings → Environment Variables에서 VITE_API_URL을 설정하세요.');
-  console.error('예: https://your-backend.railway.app/api');
-  // 임시로 상대 경로 사용 (같은 도메인에 백엔드가 있는 경우)
-  return '/api';
+  console.error('예: https://your-backend.railway.app');
+  console.error('현재 요청이 Vercel 도메인으로 가고 있어 405 에러가 발생합니다.');
+  // 상대 경로를 사용하면 Vercel 도메인으로 가므로 에러 발생
+  // 환경 변수가 없으면 명시적으로 에러 표시
+  throw new Error('VITE_API_URL 환경 변수가 설정되지 않았습니다. Vercel Settings에서 설정하세요.');
 };
 
+let apiBaseUrl: string;
+try {
+  apiBaseUrl = getApiUrl();
+  console.log('✅ API Base URL:', apiBaseUrl);
+} catch (error) {
+  console.error('❌ API URL 설정 실패:', error);
+  // 기본값 설정 (로컬 개발용)
+  apiBaseUrl = 'http://localhost:4000/api';
+  console.warn('⚠️ 기본값 사용:', apiBaseUrl);
+}
+
 export const api = axios.create({
-  baseURL: getApiUrl(),
+  baseURL: apiBaseUrl,
   timeout: 15000
 });
-
-console.log('API Base URL:', getApiUrl());
 
 // 요청 인터셉터: 토큰 자동 추가
 api.interceptors.request.use((config) => {
