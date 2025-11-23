@@ -27,14 +27,19 @@
    - GitHub로 로그인
    - "Add New Project" 클릭
    - 저장소 선택
-   - **Root Directory**: `frontend` 선택
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-   - **Environment Variables**:
+   - **중요**: "Configure Project" 클릭
+   - **Root Directory**: `frontend` 선택 (또는 `frontend` 폴더로 변경)
+   - **Framework Preset**: Vite 선택
+   - **Build Command**: `npm run build` (자동 감지됨)
+   - **Output Directory**: `dist` (자동 감지됨)
+   - **Install Command**: `npm install` (자동 감지됨)
+   - **Environment Variables** 추가:
      ```
      VITE_API_URL=https://your-backend-url.railway.app/api
      ```
    - "Deploy" 클릭
+   
+   **참고**: `frontend/vercel.json` 파일이 있으면 자동으로 설정이 적용됩니다.
 
 #### 백엔드 배포 (Railway)
 
