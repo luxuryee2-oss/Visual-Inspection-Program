@@ -27,6 +27,18 @@ export function ImageUploader({direction, value, onChange}: Props) {
 
   const startCamera = useCallback(async () => {
     try {
+      // 카메라 권한 확인
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('이 브라우저는 카메라를 지원하지 않습니다. HTTPS를 사용하거나 다른 브라우저를 시도하세요.');
+        return;
+      }
+
+      // HTTPS 확인 (로컬호스트 제외)
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        alert('카메라는 HTTPS 연결에서만 사용할 수 있습니다.');
+        return;
+      }
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {facingMode: 'environment'}
       });
@@ -36,8 +48,21 @@ export function ImageUploader({direction, value, onChange}: Props) {
         await videoRef.current.play();
       }
       setCameraActive(true);
-    } catch (err) {
-      alert('카메라를 사용할 수 없습니다. 권한을 확인하세요.');
+    } catch (err: any) {
+      console.error('카메라 시작 실패:', err);
+      let errorMessage = '카메라를 사용할 수 없습니다.';
+      
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage = '카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorMessage = '카메라를 찾을 수 없습니다.';
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        errorMessage = '카메라에 접근할 수 없습니다. 다른 앱에서 사용 중일 수 있습니다.';
+      } else if (err.message) {
+        errorMessage = `카메라 오류: ${err.message}`;
+      }
+      
+      alert(errorMessage);
     }
   }, []);
 

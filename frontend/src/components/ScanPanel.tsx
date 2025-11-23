@@ -20,12 +20,48 @@ export function ScanPanel({value, onChange, onProductFound}: Props) {
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const stopScanning = useCallback(async () => {
+    if (qrCodeScannerRef.current) {
+      try {
+        await qrCodeScannerRef.current.stop();
+        await qrCodeScannerRef.current.clear();
+      } catch (err) {
+        // 이미 정지된 경우 무시
+      }
+      qrCodeScannerRef.current = null;
+    }
+    if (videoRef.current?.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach((track) => track.stop());
+    }
+    setCameraActive(false);
+    setScanning(false);
+  }, []);
+
   const startScanning = useCallback(async () => {
     try {
       setError(null);
       setScanning(true);
       
-      if (!scanAreaRef.current) return;
+      if (!scanAreaRef.current) {
+        setError('스캔 영역을 찾을 수 없습니다.');
+        setScanning(false);
+        return;
+      }
+
+      // 카메라 권한 확인
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError('이 브라우저는 카메라를 지원하지 않습니다. HTTPS를 사용하거나 다른 브라우저를 시도하세요.');
+        setScanning(false);
+        return;
+      }
+
+      // HTTPS 확인 (로컬호스트 제외)
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        setError('카메라는 HTTPS 연결에서만 사용할 수 있습니다.');
+        setScanning(false);
+        return;
+      }
 
       const qrCode = new Html5Qrcode(scanAreaRef.current.id);
       qrCodeScannerRef.current = qrCode;
@@ -55,15 +91,41 @@ export function ScanPanel({value, onChange, onProductFound}: Props) {
       
       setCameraActive(true);
     } catch (err: any) {
-      setError('카메라를 사용할 수 없습니다. 권한을 확인하세요.');
+      console.error('스캔 시작 실패:', err);
+      let errorMessage = '카메라를 사용할 수 없습니다.';
+      
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage = '카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorMessage = '카메라를 찾을 수 없습니다.';
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        errorMessage = '카메라에 접근할 수 없습니다. 다른 앱에서 사용 중일 수 있습니다.';
+      } else if (err.message) {
+        errorMessage = `카메라 오류: ${err.message}`;
+      }
+      
+      setError(errorMessage);
       setScanning(false);
       setCameraActive(false);
     }
-  }, [onChange, onProductFound]);
+  }, [onChange, onProductFound, stopScanning]);
 
   const startCamera = useCallback(async () => {
     try {
       setError(null);
+      
+      // 카메라 권한 확인
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError('이 브라우저는 카메라를 지원하지 않습니다. HTTPS를 사용하거나 다른 브라우저를 시도하세요.');
+        return;
+      }
+
+      // HTTPS 확인 (로컬호스트 제외)
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        setError('카메라는 HTTPS 연결에서만 사용할 수 있습니다.');
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}});
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -71,26 +133,21 @@ export function ScanPanel({value, onChange, onProductFound}: Props) {
       }
       setCameraActive(true);
     } catch (err: any) {
-      setError('카메라를 사용할 수 없습니다. 권한을 확인하세요.');
-    }
-  }, []);
-
-  const stopScanning = useCallback(async () => {
-    if (qrCodeScannerRef.current) {
-      try {
-        await qrCodeScannerRef.current.stop();
-        await qrCodeScannerRef.current.clear();
-      } catch (err) {
-        // 이미 정지된 경우 무시
+      console.error('카메라 시작 실패:', err);
+      let errorMessage = '카메라를 사용할 수 없습니다.';
+      
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage = '카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorMessage = '카메라를 찾을 수 없습니다.';
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        errorMessage = '카메라에 접근할 수 없습니다. 다른 앱에서 사용 중일 수 있습니다.';
+      } else if (err.message) {
+        errorMessage = `카메라 오류: ${err.message}`;
       }
-      qrCodeScannerRef.current = null;
+      
+      setError(errorMessage);
     }
-    if (videoRef.current?.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach((track) => track.stop());
-    }
-    setCameraActive(false);
-    setScanning(false);
   }, []);
 
   const stopCamera = useCallback(() => {
@@ -180,7 +237,14 @@ export function ScanPanel({value, onChange, onProductFound}: Props) {
             )}
           </Button>
         </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && (
+          <div className="p-3 bg-destructive/10 border border-destructive/50 rounded-md">
+            <p className="text-sm text-destructive font-medium">{error}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              안드로이드: 설정 → 앱 → 브라우저 → 권한 → 카메라 허용
+            </p>
+          </div>
+        )}
         {scanning && scanAreaRef.current && (
           <div
             id="qr-reader"
