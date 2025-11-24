@@ -38,35 +38,42 @@ function App() {
       // 제품 코드 설정
       form.setValue('productCode', scannedValue);
       
-      // 제품명 자동 추출: 91958포함10자리 +C ekdma 7번째 자리부터9번째 자리까지
+      // 제품명 자동 추출: P 다음 91958포함 10자리 + E 다음 JW + C 다음 7-9번째 자리
       const extractProductName = (code: string): string | null => {
-        // 91958을 포함한 10자리 찾기
-        const index91958 = code.indexOf('91958');
+        // 1. P 다음에 91958 포함 10자리 찾기
+        const pIndex = code.indexOf('P');
+        if (pIndex === -1) return null;
+        
+        const afterP = code.substring(pIndex + 1);
+        const index91958 = afterP.indexOf('91958');
         if (index91958 === -1) return null;
         
-        // 91958부터 10자리 추출
-        const tenDigits = code.substring(index91958, index91958 + 10);
+        // P 다음부터 91958 포함 10자리 추출
+        const startPos = index91958; // P 다음에서 91958의 위치
+        const tenDigits = afterP.substring(startPos, startPos + 10);
         if (tenDigits.length < 10) return null;
         
-        // 그 다음에 "C" 찾기
-        const afterTenDigits = code.substring(index91958 + 10);
-        const cIndex = afterTenDigits.indexOf('C');
+        // 2. E 다음에 JW 찾기
+        const eIndex = code.indexOf('E');
+        if (eIndex === -1) return null;
+        
+        const afterE = code.substring(eIndex + 1);
+        if (!afterE.startsWith('JW')) return null;
+        
+        const jwPart = 'JW';
+        
+        // 3. C 다음에 7번째부터 9번째 자리 찾기
+        const cIndex = code.indexOf('C');
         if (cIndex === -1) return null;
         
-        // 그 다음에 "ekdma" 찾기
-        const afterC = afterTenDigits.substring(cIndex + 1);
-        const ekdmaIndex = afterC.indexOf('ekdma');
-        if (ekdmaIndex === -1) return null;
+        const afterC = code.substring(cIndex + 1);
+        if (afterC.length < 9) return null;
         
-        // ekdma 다음 부분에서 7번째 자리부터 9번째 자리까지 추출
-        const afterEkdma = afterC.substring(ekdmaIndex + 5); // "ekdma" 길이 5
-        if (afterEkdma.length < 9) return null;
+        // C 다음 7번째부터 9번째 자리 (인덱스 6부터 9까지, 3자리)
+        const cDigits = afterC.substring(6, 9);
         
-        // 7번째 자리부터 9번째 자리까지 (인덱스 6부터 9까지, 3자리)
-        const extracted = afterEkdma.substring(6, 9);
-        
-        // 최종 제품명: 91958포함10자리 + C + ekdma + 추출된3자리
-        return `${tenDigits}Cekdma${extracted}`;
+        // 최종 제품명: 91958포함10자리 + JW + C 다음 7-9번째 자리
+        return `${tenDigits}${jwPart}${cDigits}`;
       };
       
       const extractedName = extractProductName(scannedValue);
