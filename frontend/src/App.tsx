@@ -32,16 +32,52 @@ function App() {
   const {form, setImage, resetImages} = useInspectionForm();
   const productCode = form.watch('productCode');
 
-  // 제품 정보 자동 조회
+  // 제품 정보 자동 조회 및 제품명 자동 추출
   const handleProductFound = async (scannedValue: string, uniqueCode: string) => {
     try {
-      const product = await getProductByUniqueCode(uniqueCode);
-      if (product) {
-        form.setValue('productCode', product.productCode);
-        form.setValue('modelName', product.productName);
+      // 제품 코드 설정
+      form.setValue('productCode', scannedValue);
+      
+      // 제품명 자동 추출: 91958포함10자리 +C ekdma 7번째 자리부터9번째 자리까지
+      const extractProductName = (code: string): string | null => {
+        // 91958을 포함한 10자리 찾기
+        const index91958 = code.indexOf('91958');
+        if (index91958 === -1) return null;
+        
+        // 91958부터 10자리 추출
+        const tenDigits = code.substring(index91958, index91958 + 10);
+        if (tenDigits.length < 10) return null;
+        
+        // 그 다음에 "C" 찾기
+        const afterTenDigits = code.substring(index91958 + 10);
+        const cIndex = afterTenDigits.indexOf('C');
+        if (cIndex === -1) return null;
+        
+        // 그 다음에 "ekdma" 찾기
+        const afterC = afterTenDigits.substring(cIndex + 1);
+        const ekdmaIndex = afterC.indexOf('ekdma');
+        if (ekdmaIndex === -1) return null;
+        
+        // ekdma 다음 부분에서 7번째 자리부터 9번째 자리까지 추출
+        const afterEkdma = afterC.substring(ekdmaIndex + 5); // "ekdma" 길이 5
+        if (afterEkdma.length < 9) return null;
+        
+        // 7번째 자리부터 9번째 자리까지 (인덱스 6부터 9까지, 3자리)
+        const extracted = afterEkdma.substring(6, 9);
+        
+        // 최종 제품명: 91958포함10자리 + C + ekdma + 추출된3자리
+        return `${tenDigits}Cekdma${extracted}`;
+      };
+      
+      const extractedName = extractProductName(scannedValue);
+      if (extractedName) {
+        form.setValue('modelName', extractedName);
       } else {
-        // 제품 정보가 없으면 스캔값을 그대로 사용
-        form.setValue('productCode', scannedValue);
+        // 추출 실패 시 제품 정보 조회 시도
+        const product = await getProductByUniqueCode(uniqueCode);
+        if (product) {
+          form.setValue('modelName', product.productName);
+        }
       }
     } catch (error) {
       console.error('제품 정보 조회 실패:', error);
