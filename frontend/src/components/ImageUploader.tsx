@@ -21,16 +21,25 @@ type Props = {
 // 인터넷 익스플로러 감지
 const isIE = () => {
   if (typeof window === 'undefined') return false;
-  const ua = window.navigator.userAgent;
-  const msie = ua.indexOf('MSIE ');
-  const trident = ua.indexOf('Trident/');
-  return msie > 0 || trident > 0;
+  try {
+    const ua = window.navigator?.userAgent || '';
+    const msie = ua.indexOf('MSIE ');
+    const trident = ua.indexOf('Trident/');
+    return msie > 0 || trident > 0;
+  } catch {
+    return false;
+  }
 };
 
 // 카메라 지원 여부 확인
 const isCameraSupported = () => {
+  if (typeof window === 'undefined') return false;
   if (isIE()) return false;
-  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  try {
+    return !!(navigator?.mediaDevices && navigator.mediaDevices.getUserMedia);
+  } catch {
+    return false;
+  }
 };
 
 export function ImageUploader({direction, value, onChange}: Props) {
@@ -43,7 +52,12 @@ export function ImageUploader({direction, value, onChange}: Props) {
   
   // 컴포넌트 마운트 시 카메라 지원 여부 확인
   useEffect(() => {
-    setCameraSupported(isCameraSupported());
+    // 클라이언트 사이드에서만 실행
+    if (typeof window !== 'undefined') {
+      const supported = isCameraSupported();
+      console.log('카메라 지원 여부 확인:', supported);
+      setCameraSupported(supported);
+    }
   }, []);
   
   // 이미지 미리보기 URL 생성 및 정리
