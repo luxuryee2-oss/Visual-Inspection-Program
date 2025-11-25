@@ -40,40 +40,78 @@ function App() {
       
       // 제품명 자동 추출: P 다음 91958포함 10자리 + E 다음 JW + C 다음 7-9번째 자리
       const extractProductName = (code: string): string | null => {
-        // 1. P 다음에 91958 포함 10자리 찾기
-        const pIndex = code.indexOf('P');
-        if (pIndex === -1) return null;
-        
-        const afterP = code.substring(pIndex + 1);
-        const index91958 = afterP.indexOf('91958');
-        if (index91958 === -1) return null;
-        
-        // P 다음부터 91958 포함 10자리 추출
-        const startPos = index91958; // P 다음에서 91958의 위치
-        const tenDigits = afterP.substring(startPos, startPos + 10);
-        if (tenDigits.length < 10) return null;
-        
-        // 2. E 다음에 JW 찾기
-        const eIndex = code.indexOf('E');
-        if (eIndex === -1) return null;
-        
-        const afterE = code.substring(eIndex + 1);
-        if (!afterE.startsWith('JW')) return null;
-        
-        const jwPart = 'JW';
-        
-        // 3. C 다음에 7번째부터 9번째 자리 찾기
-        const cIndex = code.indexOf('C');
-        if (cIndex === -1) return null;
-        
-        const afterC = code.substring(cIndex + 1);
-        if (afterC.length < 9) return null;
-        
-        // C 다음 7번째부터 9번째 자리 (인덱스 6부터 9까지, 3자리)
-        const cDigits = afterC.substring(6, 9);
-        
-        // 최종 제품명: 91958포함10자리 + JW + C 다음 7-9번째 자리
-        return `${tenDigits}${jwPart}${cDigits}`;
+        try {
+          // 1. P 다음에 91958 포함 10자리 찾기
+          const pIndex = code.indexOf('P');
+          if (pIndex === -1) {
+            console.log('P를 찾을 수 없습니다');
+            return null;
+          }
+          
+          const afterP = code.substring(pIndex + 1);
+          const index91958 = afterP.indexOf('91958');
+          if (index91958 === -1) {
+            console.log('91958을 찾을 수 없습니다');
+            return null;
+          }
+          
+          // P 다음부터 91958 포함 10자리 추출
+          const startPos = index91958; // P 다음에서 91958의 위치
+          const tenDigits = afterP.substring(startPos, startPos + 10);
+          if (tenDigits.length < 10) {
+            console.log('10자리를 추출할 수 없습니다:', tenDigits);
+            return null;
+          }
+          
+          // 2. E 다음에 JW 찾기 (EJW 패턴 찾기)
+          const ejwIndex = code.indexOf('EJW');
+          if (ejwIndex === -1) {
+            console.log('EJW를 찾을 수 없습니다');
+            return null;
+          }
+          
+          const jwPart = 'JW';
+          
+          // 3. C 다음 문자열에서 7번째부터 9번째까지 추출
+          // 예: "C020100007000000A2" → C 다음 "020100007000000A2"
+          // 1번째=인덱스0(0), 2번째=인덱스1(2), 3번째=인덱스2(0), 4번째=인덱스3(1), 
+          // 5번째=인덱스4(0), 6번째=인덱스5(0), 7번째=인덱스6(0), 8번째=인덱스7(0), 9번째=인덱스8(7)
+          // 따라서 인덱스 6부터 9까지 = "007"
+          const cIndex = code.lastIndexOf('C');
+          if (cIndex === -1) {
+            console.log('C를 찾을 수 없습니다');
+            return null;
+          }
+          
+          const afterC = code.substring(cIndex + 1);
+          if (afterC.length < 9) {
+            console.error('C 다음 문자열이 9자리보다 짧습니다:', afterC, '길이:', afterC.length);
+            return null;
+          }
+          
+          // C 다음 문자열에서 7번째부터 9번째까지 (인덱스 6부터 9까지, 3자리)
+          const cDigits = afterC.substring(6, 9);
+          
+          // 디버깅: 콘솔에 추출 과정 출력
+          console.log('=== 제품명 추출 디버깅 ===');
+          console.log('전체 코드:', code);
+          console.log('전체 코드 길이:', code.length);
+          console.log('P 위치:', pIndex);
+          console.log('P 다음 91958 포함 10자리:', tenDigits);
+          console.log('EJW 위치:', ejwIndex);
+          console.log('C 위치 (lastIndexOf):', cIndex);
+          console.log('C 다음 문자열:', afterC);
+          console.log('C 다음 문자열 길이:', afterC.length);
+          console.log('7-9번째 자리 (인덱스 6-9):', cDigits);
+          console.log('추출된 전체 제품명:', `${tenDigits}${jwPart}${cDigits}`);
+          console.log('========================');
+          
+          // 최종 제품명: 91958포함10자리 + JW + C 다음 7-9번째 자리
+          return `${tenDigits}${jwPart}${cDigits}`;
+        } catch (error) {
+          console.error('제품명 추출 중 오류:', error);
+          return null;
+        }
       };
       
       const extractedName = extractProductName(scannedValue);
@@ -204,13 +242,13 @@ function App() {
                 로그아웃
               </Button>
             </div>
-          </div>
+        </div>
           <p className="text-sm font-mono text-[hsl(var(--doom-red))] uppercase tracking-wider">Visual Inspection</p>
           <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-[hsl(var(--doom-red))] via-[hsl(var(--doom-orange))] to-[hsl(var(--doom-yellow))] bg-clip-text text-transparent">
             제품 스캔 & SharePoint 기록
           </h1>
           <p className="text-muted-foreground">상·하·좌·우 사진을 업로드하고 기록을 추적하세요.</p>
-        </header>
+      </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <FormProvider {...form}>
@@ -235,7 +273,7 @@ function App() {
                       placeholder="예) Smart Camera"
                       className="border-input/50 focus-visible:ring-[hsl(var(--doom-red))]"
                     />
-                  </div>
+              </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="inspectedBy">검사자</Label>
@@ -245,7 +283,7 @@ function App() {
                       placeholder="이름 또는 ID"
                       className="border-input/50 focus-visible:ring-[hsl(var(--doom-red))]"
                     />
-                  </div>
+              </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="notes">메모</Label>
@@ -256,18 +294,18 @@ function App() {
                       placeholder="특이사항을 입력하세요."
                       className="border-input/50 focus-visible:ring-[hsl(var(--doom-red))]"
                     />
-                  </div>
+              </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    {(['front', 'back', 'left', 'right'] as InspectionDirection[]).map((direction) => (
-                      <ImageUploader
-                        key={direction}
-                        direction={direction}
-                        value={form.watch(`images.${direction}` as const)}
-                        onChange={(file) => setImage(direction, file)}
-                      />
-                    ))}
-                  </div>
+                {(['front', 'back', 'left', 'right'] as InspectionDirection[]).map((direction) => (
+                  <ImageUploader
+                    key={direction}
+                    direction={direction}
+                    value={form.watch(`images.${direction}` as const)}
+                    onChange={(file) => setImage(direction, file)}
+                  />
+                ))}
+              </div>
 
                   <Button
                     type="submit"
@@ -276,9 +314,9 @@ function App() {
                     disabled={mutation.isPending}
                     className="w-full"
                   >
-                    {mutation.isPending ? '업로드 중...' : 'SharePoint 업로드'}
+                {mutation.isPending ? '업로드 중...' : 'SharePoint 업로드'}
                   </Button>
-                </form>
+            </form>
               </CardContent>
             </Card>
           </FormProvider>
